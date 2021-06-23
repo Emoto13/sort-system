@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option go_package = "github.com/Emoto13/sort-system/gen";
+
+import "types.proto";
+
+service SortingRobot {
+  rpc LoadItems(LoadItemsRequest) returns (Empty) {}
+  rpc MoveItem(MoveItemRequest) returns (Empty) {}
+  rpc SelectItem(Empty) returns (SelectItemResponse) {}
+  rpc AuditState(Empty) returns (AuditStateResponse);
+}
+
+message LoadItemsRequest {
+    repeated types.Item items = 1;
+}
+
+message MoveItemRequest {
+  types.Cubby cubby = 1;
+}
+
+message SelectItemResponse {
+  types.Item item = 1;
+}
+
+message Empty {}
+
+message AuditStateResponse {
+  repeated CubbyToItems cubbiesToItems = 1;
+}
+
+message CubbyToItems {
+  types.Cubby cubby = 1;
+  repeated types.Item items = 2;
+}
