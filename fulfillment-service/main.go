@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/Emoto13/sort_system/gen"
+	"github.com/Emoto13/sort-system/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

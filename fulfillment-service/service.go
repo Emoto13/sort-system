@@ -3,31 +3,25 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 
-	"github.com/Emoto13/sort_system/fulfillment-service/state"
-
-	"github.com/Emoto13/sort_system/gen"
+	"github.com/Emoto13/sort-system/gen"
+	"github.com/Emoto13/sort-system/fulfillment-service/state"
 )
 
 type fulfillmentService struct {
 	sortingRobot gen.SortingRobotClient
-	state        *StateManager
-	mu           sync.Mutex
+	state *state.StateManager
 }
 
 func newFulfillmentService(sortingRobot gen.SortingRobotClient) gen.FulfillmentServer {
 	return &fulfillmentService{
 		sortingRobot: sortingRobot,
-		state:        newStateManager(),
+		state: state.NewStateManager(),
 	}
 }
 
 func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrdersRequest) (*gen.CompleteResponse, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	preparedOrders := fs.state.getPreparedOrders(in.Orders)
+	preparedOrders := fs.state.GetPreparedOrders(in.Orders)
 	err := fs.fullfillOrders(ctx)
 	if err != nil {
 		return nil, err
@@ -38,13 +32,13 @@ func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrders
 
 func (fs *fulfillmentService) fullfillOrders(ctx context.Context) error {
 
-	for i := 0; i < fs.state.numberOfItems; i++ {
-		resp, err := fs.sortingRobot.SelectItem(ctx, &gen.SelectItemRequest{})
+	for i := 0; i < fs.state.NumberOfItems; i++ {
+		resp, err := fs.sortingRobot.SelectItem(ctx, &gen.Empty{})
 		if err != nil {
 			return err
 		}
 
-		cubby := fs.state.getCubbyByItemCode(resp.Item.Code)
+		cubby := fs.state.GetCubbyByItemCode(resp.Item.Code)
 		_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: cubby})
 		if err != nil {
 			return err
