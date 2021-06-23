@@ -48,7 +48,7 @@ func TestSelectItem(t *testing.T) {
 	sorting_service.LoadItems(context.Background(), &gen.LoadItemsRequest{Items: items})
 
 	for _, _ = range tests {
-		sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
+		sorting_service.SelectItem(context.Background(), &gen.Empty{})
 		assert.Equal(t, sorting_service.SelectedItem, testItem, "There should be a selected item")
 	}
 }
@@ -59,16 +59,16 @@ func TestSelectItem_ErrorCases(t *testing.T) {
 	items := []*gen.Item{testItem}
 
 	sorting_service.LoadItems(context.Background(), &gen.LoadItemsRequest{Items: items})
-	sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
-	_, err := sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
+	sorting_service.SelectItem(context.Background(), &gen.Empty{})
+	_, err := sorting_service.SelectItem(context.Background(), &gen.Empty{})
 
 	assert.NotEqual(t, err, nil, "When Item is selected, the method shoud return error")
 }
 
 func TestSelectItemWhenThereAreNoItemsLeft(t *testing.T) {
 	sorting_service := newSortingService()
-	sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
-	_, err := sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
+	sorting_service.SelectItem(context.Background(), &gen.Empty{})
+	_, err := sorting_service.SelectItem(context.Background(), &gen.Empty{})
 	assert.NotEqual(t, err, nil, "When there are no items in the cargo, the method shoud return error")
 }
 
@@ -78,7 +78,7 @@ func TestMoveItem(t *testing.T) {
 	items := []*gen.Item{testItem}
 
 	sorting_service.LoadItems(context.Background(), &gen.LoadItemsRequest{Items: items})
-	sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
+	sorting_service.SelectItem(context.Background(), &gen.Empty{})
 	res, err := sorting_service.MoveItem(context.Background(), &gen.MoveItemRequest{})
 	assert.NotEqual(t, res, nil, "Result should be empty MoveItemResponse")
 	assert.Equal(t, err, nil, "There should be no error")
@@ -86,7 +86,7 @@ func TestMoveItem(t *testing.T) {
 
 func TestMoveItemWhenNoItemIsSelected(t *testing.T) {
 	sorting_service := newSortingService()
-	sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
-	_, err := sorting_service.SelectItem(context.Background(), &gen.SelectItemRequest{})
+	sorting_service.SelectItem(context.Background(), &gen.Empty{})
+	_, err := sorting_service.SelectItem(context.Background(), &gen.Empty{})
 	assert.NotEqual(t, err, nil, "When there are no items in the cargo, the method shoud return error")
 }
