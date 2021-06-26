@@ -20,6 +20,10 @@ const _ = grpc.SupportPackageIsVersion7
 type FulfillmentClient interface {
 	// Sync implementation
 	LoadOrders(ctx context.Context, in *LoadOrdersRequest, opts ...grpc.CallOption) (*CompleteResponse, error)
+	GetOrderStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
+	GetAllOrdersStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
+	MarkFulfilled(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*Empty, error)
+	ProcessOrders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type fulfillmentClient struct {
@@ -39,12 +43,52 @@ func (c *fulfillmentClient) LoadOrders(ctx context.Context, in *LoadOrdersReques
 	return out, nil
 }
 
+func (c *fulfillmentClient) GetOrderStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
+	out := new(OrdersStatusResponse)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetOrderStatusById", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fulfillmentClient) GetAllOrdersStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
+	out := new(OrdersStatusResponse)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetAllOrdersStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fulfillmentClient) MarkFulfilled(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/MarkFulfilled", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *fulfillmentClient) ProcessOrders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/ProcessOrders", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FulfillmentServer is the server API for Fulfillment service.
 // All implementations should embed UnimplementedFulfillmentServer
 // for forward compatibility
 type FulfillmentServer interface {
 	// Sync implementation
 	LoadOrders(context.Context, *LoadOrdersRequest) (*CompleteResponse, error)
+	GetOrderStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error)
+	GetAllOrdersStatus(context.Context, *Empty) (*OrdersStatusResponse, error)
+	MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error)
+	ProcessOrders(context.Context, *Empty) (*Empty, error)
 }
 
 // UnimplementedFulfillmentServer should be embedded to have forward compatible implementations.
@@ -53,6 +97,18 @@ type UnimplementedFulfillmentServer struct {
 
 func (UnimplementedFulfillmentServer) LoadOrders(context.Context, *LoadOrdersRequest) (*CompleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadOrders not implemented")
+}
+func (UnimplementedFulfillmentServer) GetOrderStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderStatusById not implemented")
+}
+func (UnimplementedFulfillmentServer) GetAllOrdersStatus(context.Context, *Empty) (*OrdersStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllOrdersStatus not implemented")
+}
+func (UnimplementedFulfillmentServer) MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MarkFulfilled not implemented")
+}
+func (UnimplementedFulfillmentServer) ProcessOrders(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessOrders not implemented")
 }
 
 // UnsafeFulfillmentServer may be embedded to opt out of forward compatibility for this service.
@@ -84,6 +140,78 @@ func _Fulfillment_LoadOrders_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Fulfillment_GetOrderStatusById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OrderIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FulfillmentServer).GetOrderStatusById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/fulfillment.Fulfillment/GetOrderStatusById",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FulfillmentServer).GetOrderStatusById(ctx, req.(*OrderIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Fulfillment_GetAllOrdersStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FulfillmentServer).GetAllOrdersStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/fulfillment.Fulfillment/GetAllOrdersStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FulfillmentServer).GetAllOrdersStatus(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Fulfillment_MarkFulfilled_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OrderIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FulfillmentServer).MarkFulfilled(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/fulfillment.Fulfillment/MarkFulfilled",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FulfillmentServer).MarkFulfilled(ctx, req.(*OrderIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Fulfillment_ProcessOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FulfillmentServer).ProcessOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/fulfillment.Fulfillment/ProcessOrders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FulfillmentServer).ProcessOrders(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Fulfillment_ServiceDesc is the grpc.ServiceDesc for Fulfillment service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -94,6 +222,22 @@ var Fulfillment_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LoadOrders",
 			Handler:    _Fulfillment_LoadOrders_Handler,
+		},
+		{
+			MethodName: "GetOrderStatusById",
+			Handler:    _Fulfillment_GetOrderStatusById_Handler,
+		},
+		{
+			MethodName: "GetAllOrdersStatus",
+			Handler:    _Fulfillment_GetAllOrdersStatus_Handler,
+		},
+		{
+			MethodName: "MarkFulfilled",
+			Handler:    _Fulfillment_MarkFulfilled_Handler,
+		},
+		{
+			MethodName: "ProcessOrders",
+			Handler:    _Fulfillment_ProcessOrders_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

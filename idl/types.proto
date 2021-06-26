@@ -3,6 +3,7 @@ syntax = "proto3";
 package types;
 option go_package = "github.com/Emoto13/sort-system/gen";
 
+
 message Item {
     string code = 1;
     string label = 2;
@@ -16,3 +17,5 @@ message Order {
 message Cubby {
     string id = 1;
 }
+
+message Empty {}

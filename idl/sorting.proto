@@ -5,10 +5,10 @@ option go_package = "github.com/Emoto13/sort-system/gen";
 import "types.proto";
 
 service SortingRobot {
-  rpc LoadItems(LoadItemsRequest) returns (Empty) {}
-  rpc MoveItem(MoveItemRequest) returns (Empty) {}
-  rpc SelectItem(Empty) returns (SelectItemResponse) {}
-  rpc AuditState(Empty) returns (AuditStateResponse);
+  rpc LoadItems(LoadItemsRequest) returns (types.Empty) {}
+  rpc MoveItem(MoveItemRequest) returns (types.Empty) {}
+  rpc SelectItem(types.Empty) returns (SelectItemResponse) {}
+  rpc AuditState(types.Empty) returns (AuditStateResponse);
 }
 
 message LoadItemsRequest {
@@ -23,7 +23,6 @@ message SelectItemResponse {
   types.Item item = 1;
 }
 
-message Empty {}
 
 message AuditStateResponse {
   repeated CubbyToItems cubbiesToItems = 1;
