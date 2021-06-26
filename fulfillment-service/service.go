@@ -3,48 +3,102 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
-	"github.com/Emoto13/sort-system/gen"
 	"github.com/Emoto13/sort-system/fulfillment-service/state"
+	"github.com/Emoto13/sort-system/gen"
 )
 
 type fulfillmentService struct {
-	sortingRobot gen.SortingRobotClient
-	state *state.StateManager
+	sortingRobot      gen.SortingRobotClient
+	state             state.State
+	preparedOrders    chan []*gen.PreparedOrder
+	areOrderProcessed bool
 }
 
 func newFulfillmentService(sortingRobot gen.SortingRobotClient) gen.FulfillmentServer {
 	return &fulfillmentService{
-		sortingRobot: sortingRobot,
-		state: state.NewStateManager(),
+		sortingRobot:      sortingRobot,
+		state:             state.New(),
+		preparedOrders:    make(chan []*gen.PreparedOrder),
+		areOrderProcessed: false,
 	}
 }
 
 func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrdersRequest) (*gen.CompleteResponse, error) {
-	preparedOrders := fs.state.GetPreparedOrders(in.Orders)
-	err := fs.fullfillOrders(ctx)
+	fs.preparedOrders <- fs.StartProcessingOrder(ctx, in.Orders)
+	return &gen.CompleteResponse{Status: "OK", Orders: []*gen.PreparedOrder{}}, nil
+}
+
+func (fs *fulfillmentService) ProcessOrders(ctx context.Context, in *gen.Empty) (*gen.Empty, error) {
+	for {
+		<-fs.preparedOrders
+	}
+	return &gen.Empty{}, nil
+}
+
+func (fs *fulfillmentService) StartProcessingOrder(ctx context.Context, orders []*gen.Order) []*gen.PreparedOrder {
+	fs.state.Clear()
+	fs.state.SetOrdersState(orders, gen.OrderState_PENDING)
+	preparedOrders := fs.state.GetPreparedOrders(orders)
+	err := fs.fulfillOrders(ctx, orders)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return preparedOrders
+}
+
+func (fs *fulfillmentService) fulfillOrders(ctx context.Context, preparedOrders []*gen.Order) error {
+	for _, order := range preparedOrders {
+		for _, _ = range order.Items {
+			resp, err := fs.sortingRobot.SelectItem(ctx, &gen.Empty{})
+			if err != nil {
+				return err
+			}
+
+			cubby, err := fs.state.GetCubbyByItemCode(resp.Item.Code)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: cubby})
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Item with code ", resp.Item.Code, " is moved to: ", cubby.Id)
+		}
+		fs.state.SetOrderStateById(order.Id, gen.OrderState_READY)
+	}
+
+	return nil
+}
+
+func (fs *fulfillmentService) GetOrderStatusById(ctx context.Context, in *gen.OrderIdRequest) (*gen.OrdersStatusResponse, error) {
+	fulfillmentStatus, err := fs.state.GetFulfillmentStatusByOrderId(in.OrderId)
 	if err != nil {
 		return nil, err
 	}
 
-	return &gen.CompleteResponse{Status: "200", Orders: preparedOrders}, nil
+	return &gen.OrdersStatusResponse{Status: fulfillmentStatus}, nil
 }
 
-func (fs *fulfillmentService) fullfillOrders(ctx context.Context) error {
-
-	for i := 0; i < fs.state.NumberOfItems; i++ {
-		resp, err := fs.sortingRobot.SelectItem(ctx, &gen.Empty{})
-		if err != nil {
-			return err
-		}
-
-		cubby := fs.state.GetCubbyByItemCode(resp.Item.Code)
-		_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: cubby})
-		if err != nil {
-			return err
-		}
-
-		fmt.Println("Item with code ", resp.Item.Code, " is moved to: ", cubby.Id)
+func (fs *fulfillmentService) GetAllOrdersStatus(ctx context.Context, in *gen.Empty) (*gen.OrdersStatusResponse, error) {
+	allOrdersFulfillmentStatus, err := fs.state.GetFulfillmentStatusOfAllOrders()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return &gen.OrdersStatusResponse{Status: allOrdersFulfillmentStatus}, nil
+}
+
+func (fs *fulfillmentService) MarkFulfilled(ctx context.Context, in *gen.OrderIdRequest) (*gen.Empty, error) {
+	err := fs.state.SetOrderStateById(in.OrderId, gen.OrderState_READY)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gen.Empty{}, nil
 }
