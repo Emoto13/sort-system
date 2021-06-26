@@ -22,9 +22,7 @@ type State interface {
 type stateManager struct {
 	ItemCodeToCubby  map[string][]*gen.Cubby
 	CubbyIdToOrderId map[string]string
-	OrderIdToCubby   map[string]*gen.Cubby
-	OrderIdToItems   map[string][]*gen.Item
-	OrderIdToState   map[string]gen.OrderState
+	OrderIdToData    map[string]*orderData
 	mu               sync.RWMutex
 }
 
@@ -32,9 +30,7 @@ func New() State {
 	return &stateManager{
 		ItemCodeToCubby:  make(map[string][]*gen.Cubby),
 		CubbyIdToOrderId: make(map[string]string),
-		OrderIdToCubby:   make(map[string]*gen.Cubby),
-		OrderIdToItems:   make(map[string][]*gen.Item),
-		OrderIdToState:   make(map[string]gen.OrderState),
+		OrderIdToData:    make(map[string]*orderData),
 		mu:               sync.RWMutex{},
 	}
 }
@@ -43,6 +39,11 @@ func (sm *stateManager) mapItemCodesToCubby(items []*gen.Item, cubby *gen.Cubby)
 	for _, item := range items {
 		sm.ItemCodeToCubby[item.Code] = append(sm.ItemCodeToCubby[item.Code], cubby)
 	}
+}
+
+func (sm *stateManager) doesOrderWithIdExist(orderId string) bool {
+	_, ok := sm.OrderIdToData[orderId]
+	return ok
 }
 
 func (sm *stateManager) getCubbyIdByOrderId(orderId string, times int) string {
@@ -63,13 +64,11 @@ func (sm *stateManager) GetPreparedOrders(orders []*gen.Order) []*gen.PreparedOr
 	preparedOrders := []*gen.PreparedOrder{}
 
 	for i, order := range orders {
-		sm.OrderIdToItems[order.Id] = order.Items
-
 		cubbyId := sm.getCubbyIdByOrderId(order.Id, i)
 		sm.CubbyIdToOrderId[cubbyId] = order.Id
 
 		cubby := &gen.Cubby{Id: cubbyId}
-		sm.OrderIdToCubby[order.Id] = cubby
+		sm.OrderIdToData[order.Id] = &orderData{id: order.Id, cubby: cubby, items: order.Items}
 
 		preparedOrder := &gen.PreparedOrder{Order: order, Cubby: cubby}
 		preparedOrders = append(preparedOrders, preparedOrder)
@@ -93,47 +92,51 @@ func (sm *stateManager) GetCubbyByItemCode(itemCode string) (*gen.Cubby, error) 
 func (sm *stateManager) Clear() {
 	sm.ItemCodeToCubby = map[string][]*gen.Cubby{}
 	sm.CubbyIdToOrderId = map[string]string{}
-	sm.OrderIdToCubby = map[string]*gen.Cubby{}
-	sm.OrderIdToItems = map[string][]*gen.Item{}
-	sm.OrderIdToState = map[string]gen.OrderState{}
+	sm.OrderIdToData = map[string]*orderData{}
 }
 
 func (sm *stateManager) GetOrderStateById(orderId string) (gen.OrderState, error) {
-	orderState, ok := sm.OrderIdToState[orderId]
-	if !ok {
+	if !sm.doesOrderWithIdExist(orderId) {
 		return gen.OrderState_FAILED, fmt.Errorf("No order with such ID")
 	}
-
-	return orderState, nil
+	data := sm.OrderIdToData[orderId]
+	return data.state, nil
 }
 
 func (sm *stateManager) SetOrdersState(orders []*gen.Order, state gen.OrderState) error {
 	for _, order := range orders {
-		sm.OrderIdToState[order.Id] = state
+		err := sm.SetOrderStateById(order.Id, state)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (sm *stateManager) SetOrderStateById(orderId string, state gen.OrderState) error {
-	sm.OrderIdToState[orderId] = state
+	if !sm.doesOrderWithIdExist(orderId) {
+		return fmt.Errorf("No order with such ID")
+	}
+
+	data := sm.OrderIdToData[orderId]
+	data.state = state
 	return nil
 }
 
 func (sm *stateManager) GetFulfillmentStatusByOrderId(orderId string) ([]*gen.FulfillmentStatus, error) {
-	order := &gen.Order{Id: orderId, Items: sm.OrderIdToItems[orderId]}
-	orderState, err := sm.GetOrderStateById(order.Id)
-	if err != nil {
-		return nil, err
+	if !sm.doesOrderWithIdExist(orderId) {
+		return nil, fmt.Errorf("No order with such ID")
 	}
 
-	fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: sm.OrderIdToCubby[orderId], State: orderState}
+	data := sm.OrderIdToData[orderId]
+	order := &gen.Order{Id: orderId, Items: data.items}
+	fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: data.cubby, State: data.state}
 	return []*gen.FulfillmentStatus{fulfillmentStatus}, nil
 }
 
 func (sm *stateManager) GetFulfillmentStatusOfAllOrders() ([]*gen.FulfillmentStatus, error) {
 	fulfillmentStatusSlice := []*gen.FulfillmentStatus{}
-
-	for orderId, _ := range sm.OrderIdToItems {
+	for orderId, _ := range sm.OrderIdToData {
 		fulfillmentStatus, err := sm.GetFulfillmentStatusByOrderId(orderId)
 		if err != nil {
 			return nil, err

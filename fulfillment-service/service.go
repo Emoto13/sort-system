@@ -40,6 +40,7 @@ func (fs *fulfillmentService) ProcessOrders(ctx context.Context, in *gen.Empty) 
 func (fs *fulfillmentService) StartProcessingOrder(ctx context.Context, orders []*gen.Order) []*gen.PreparedOrder {
 	fs.state.Clear()
 	fs.state.SetOrdersState(orders, gen.OrderState_PENDING)
+
 	preparedOrders := fs.state.GetPreparedOrders(orders)
 	err := fs.fulfillOrders(ctx, orders)
 	if err != nil {
