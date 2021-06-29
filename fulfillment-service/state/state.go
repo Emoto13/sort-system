@@ -64,6 +64,9 @@ func (sm *state) getCubbyIdByOrderId(orderId string, times int) string {
 }
 
 func (sm *state) AddOrders(orders []*gen.Order) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
 	for i, order := range orders {
 		cubbyId := sm.getCubbyIdByOrderId(order.Id, i)
 		sm.cubbyIdToOrderId[cubbyId] = order.Id
@@ -163,6 +166,9 @@ func (sm *state) GetFulfillmentStatusByOrderId(orderId string) ([]*gen.Fulfillme
 }
 
 func (sm *state) GetFulfillmentStatusOfAllOrders() ([]*gen.FulfillmentStatus, error) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
 	fulfillmentStatusSlice := []*gen.FulfillmentStatus{}
 	for _, orderData := range sm.orderIdToData {
 		items, err := sm.GetOrderItems(orderData.id)
