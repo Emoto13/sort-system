@@ -24,13 +24,14 @@ grpcurl -d "{\"items\":$items_5}" -plaintext localhost:10000  SortingRobot/LoadI
 
 grpcurl \
     -d "{\"orders\":[{\"id\":\"1\", \"items\":$items_1},{\"id\":\"2\", \"items\":$items_2},{\"id\":\"3\", \"items\":$items_3},{\"id\":\"4\", \"items\":$items_4},{\"id\":\"5\", \"items\":$items_5}]}" \
-   -plaintext localhost:10001 fulfillment.Fulfillment.LoadOrders
+   -plaintext localhost:10001 fulfillment.Fulfillment.LoadOrders & \
 
 grpcurl -d "{\"items\":$items_6}" -plaintext localhost:10000  SortingRobot/LoadItems
 grpcurl -d "{\"items\":$items_7}" -plaintext localhost:10000  SortingRobot/LoadItems
 grpcurl -d "{\"items\":$items_8}" -plaintext localhost:10000  SortingRobot/LoadItems
 grpcurl -d "{\"items\":$items_9}" -plaintext localhost:10000  SortingRobot/LoadItems
 grpcurl -d "{\"items\":$items_10}" -plaintext localhost:10000 SortingRobot/LoadItems
+
 grpcurl \
     -d "{\"orders\":[{\"id\":\"6\", \"items\":$items_6},{\"id\":\"7\", \"items\":$items_7},{\"id\":\"8\", \"items\":$items_8},{\"id\":\"9\", \"items\":$items_9},{\"id\":\"10\", \"items\":$items_10}]}" \
     -plaintext localhost:10001 fulfillment.Fulfillment.LoadOrders
