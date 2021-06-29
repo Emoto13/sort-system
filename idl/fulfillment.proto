@@ -8,14 +8,14 @@ import "types.proto";
 service Fulfillment {
     // Sync implementation
     rpc LoadOrders(LoadOrdersRequest) returns (CompleteResponse);
-    rpc GetOrderStatusById(OrderIdRequest) returns (OrdersStatusResponse);
-    rpc GetAllOrdersStatus(types.Empty) returns (OrdersStatusResponse);
+    rpc GetOrderFulfillmentStatusById(OrderIdRequest) returns (OrdersStatusResponse);
+    rpc GetAllOrdersFulfillmentStatus(types.Empty) returns (OrdersStatusResponse);
     rpc MarkFulfilled(OrderIdRequest) returns (types.Empty);
     rpc ProcessOrders(types.Empty) returns (types.Empty);
 
 }
 
-enum OrderState {
+enum OrderStatus {
     PENDING = 0;
     READY = 1;
     FAILED = 2;
@@ -24,7 +24,7 @@ enum OrderState {
 message FulfillmentStatus {
     types.Cubby cubby = 1;
     types.Order order = 2;
-    OrderState state = 3;
+    OrderStatus status = 3;
 }
 
 message OrderIdRequest {
@@ -32,7 +32,7 @@ message OrderIdRequest {
 }
 
 message OrdersStatusResponse {
-    repeated FulfillmentStatus status = 1;
+    repeated FulfillmentStatus fulfillmentStatus = 1;
 }
 
 message PreparedOrder {

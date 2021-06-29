@@ -20,8 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type FulfillmentClient interface {
 	// Sync implementation
 	LoadOrders(ctx context.Context, in *LoadOrdersRequest, opts ...grpc.CallOption) (*CompleteResponse, error)
-	GetOrderStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
-	GetAllOrdersStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
+	GetOrderFulfillmentStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
+	GetAllOrdersFulfillmentStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
 	MarkFulfilled(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*Empty, error)
 	ProcessOrders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
@@ -43,18 +43,18 @@ func (c *fulfillmentClient) LoadOrders(ctx context.Context, in *LoadOrdersReques
 	return out, nil
 }
 
-func (c *fulfillmentClient) GetOrderStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
+func (c *fulfillmentClient) GetOrderFulfillmentStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
 	out := new(OrdersStatusResponse)
-	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetOrderStatusById", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetOrderFulfillmentStatusById", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *fulfillmentClient) GetAllOrdersStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
+func (c *fulfillmentClient) GetAllOrdersFulfillmentStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error) {
 	out := new(OrdersStatusResponse)
-	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetAllOrdersStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/GetAllOrdersFulfillmentStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +85,8 @@ func (c *fulfillmentClient) ProcessOrders(ctx context.Context, in *Empty, opts .
 type FulfillmentServer interface {
 	// Sync implementation
 	LoadOrders(context.Context, *LoadOrdersRequest) (*CompleteResponse, error)
-	GetOrderStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error)
-	GetAllOrdersStatus(context.Context, *Empty) (*OrdersStatusResponse, error)
+	GetOrderFulfillmentStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error)
+	GetAllOrdersFulfillmentStatus(context.Context, *Empty) (*OrdersStatusResponse, error)
 	MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error)
 	ProcessOrders(context.Context, *Empty) (*Empty, error)
 }
@@ -98,11 +98,11 @@ type UnimplementedFulfillmentServer struct {
 func (UnimplementedFulfillmentServer) LoadOrders(context.Context, *LoadOrdersRequest) (*CompleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadOrders not implemented")
 }
-func (UnimplementedFulfillmentServer) GetOrderStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOrderStatusById not implemented")
+func (UnimplementedFulfillmentServer) GetOrderFulfillmentStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderFulfillmentStatusById not implemented")
 }
-func (UnimplementedFulfillmentServer) GetAllOrdersStatus(context.Context, *Empty) (*OrdersStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAllOrdersStatus not implemented")
+func (UnimplementedFulfillmentServer) GetAllOrdersFulfillmentStatus(context.Context, *Empty) (*OrdersStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllOrdersFulfillmentStatus not implemented")
 }
 func (UnimplementedFulfillmentServer) MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MarkFulfilled not implemented")
@@ -140,38 +140,38 @@ func _Fulfillment_LoadOrders_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Fulfillment_GetOrderStatusById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Fulfillment_GetOrderFulfillmentStatusById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(OrderIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FulfillmentServer).GetOrderStatusById(ctx, in)
+		return srv.(FulfillmentServer).GetOrderFulfillmentStatusById(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/fulfillment.Fulfillment/GetOrderStatusById",
+		FullMethod: "/fulfillment.Fulfillment/GetOrderFulfillmentStatusById",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FulfillmentServer).GetOrderStatusById(ctx, req.(*OrderIdRequest))
+		return srv.(FulfillmentServer).GetOrderFulfillmentStatusById(ctx, req.(*OrderIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Fulfillment_GetAllOrdersStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Fulfillment_GetAllOrdersFulfillmentStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FulfillmentServer).GetAllOrdersStatus(ctx, in)
+		return srv.(FulfillmentServer).GetAllOrdersFulfillmentStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/fulfillment.Fulfillment/GetAllOrdersStatus",
+		FullMethod: "/fulfillment.Fulfillment/GetAllOrdersFulfillmentStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FulfillmentServer).GetAllOrdersStatus(ctx, req.(*Empty))
+		return srv.(FulfillmentServer).GetAllOrdersFulfillmentStatus(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -224,12 +224,12 @@ var Fulfillment_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Fulfillment_LoadOrders_Handler,
 		},
 		{
-			MethodName: "GetOrderStatusById",
-			Handler:    _Fulfillment_GetOrderStatusById_Handler,
+			MethodName: "GetOrderFulfillmentStatusById",
+			Handler:    _Fulfillment_GetOrderFulfillmentStatusById_Handler,
 		},
 		{
-			MethodName: "GetAllOrdersStatus",
-			Handler:    _Fulfillment_GetAllOrdersStatus_Handler,
+			MethodName: "GetAllOrdersFulfillmentStatus",
+			Handler:    _Fulfillment_GetAllOrdersFulfillmentStatus_Handler,
 		},
 		{
 			MethodName: "MarkFulfilled",
