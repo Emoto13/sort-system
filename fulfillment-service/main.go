@@ -33,7 +33,7 @@ func newFulfillmentServer(sortingRobot gen.SortingRobotClient) (*grpc.Server, ne
 
 	grpcServer := grpc.NewServer()
 
-	service := service.NewFulfillmentService(sortingRobot)
+	service := service.New(sortingRobot)
 	go service.ProcessOrders(context.Background(), &gen.Empty{})
 
 	gen.RegisterFulfillmentServer(grpcServer, service)
