@@ -108,7 +108,7 @@ func (sm *state) GetOrderItems(orderId string) ([]*gen.Item, error) {
 	defer sm.mu.RUnlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return nil, fmt.Errorf("No order with such ID" + "Items" + orderId)
+		return nil, fmt.Errorf("No order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]
@@ -120,9 +120,7 @@ func (sm *state) GetOrderStatus(orderId string) (gen.OrderStatus, error) {
 	defer sm.mu.RUnlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		fmt.Println("Status", orderId)
-
-		return gen.OrderStatus_FAILED, fmt.Errorf("No order with such ID" + "Status" + orderId)
+		return gen.OrderStatus_FAILED, fmt.Errorf("No order with such ID")
 	}
 	data := sm.orderIdToData[orderId]
 	return data.status, nil
@@ -142,7 +140,7 @@ func (sm *state) SetOrderStatus(orderId string, status gen.OrderStatus) error {
 	defer sm.mu.Unlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return fmt.Errorf("No order with such ID" + "SET Status" + orderId)
+		return fmt.Errorf("No order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]
@@ -155,7 +153,7 @@ func (sm *state) GetFulfillmentStatusByOrderId(orderId string) ([]*gen.Fulfillme
 	defer sm.mu.RUnlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return nil, fmt.Errorf("No order with such ID" + "Get ff" + orderId)
+		return nil, fmt.Errorf("No order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]
