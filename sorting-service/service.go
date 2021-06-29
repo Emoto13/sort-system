@@ -35,7 +35,7 @@ func (s *sortingService) SelectItem(ctx context.Context, in *gen.Empty) (*gen.Se
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	log.Println(s.Items, "SelectedItem:", s.SelectedItem)
+	log.Println("SelectedItem:", s.SelectedItem)
 
 	if s.SelectedItem != nil {
 		return nil, fmt.Errorf("Item has already been selected")
