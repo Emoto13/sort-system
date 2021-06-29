@@ -1,7 +1,7 @@
 #!/bin/bash
 
 items_1='[{"code": "123", "label": "tomato"},{"code": "456", "label": "cucumber"}]'
-items_2='[{"code": "420", "label": "glass"},{"code": "222", "label": "fork"},{"code": "123", "label": "tomato"}]'
+items_2='[{"code": "420", "label": "glass"},{"code": "222", "label": "fork"}]'
 items_3='[{"code": "111", "label": "english breakfast"},{"code": "333", "label": "beans in a can"}]'
 items_4='[{"code": "666", "label": "peaches"},{"code": "667", "label": "oranges"}]'
 items_5='[{"code": "501", "label": "headphones"},{"code": "502", "label": "keyboard"},{"code": "503", "label": "cat in a box"}]'
