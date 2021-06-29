@@ -20,24 +20,24 @@ type State interface {
 }
 
 type stateManager struct {
-	ItemCodeToCubby  map[string][]*gen.Cubby
-	CubbyIdToOrderId map[string]string
+	itemCodeToCubby  map[string]*gen.Cubby
+	cubbyIdToOrderId map[string]string
 	OrderIdToData    map[string]*orderData
-	mu               sync.RWMutex
+	mu               *sync.Mutex
 }
 
 func New() State {
 	return &stateManager{
-		ItemCodeToCubby:  make(map[string][]*gen.Cubby),
-		CubbyIdToOrderId: make(map[string]string),
+		itemCodeToCubby:  make(map[string]*gen.Cubby),
+		cubbyIdToOrderId: make(map[string]string),
 		OrderIdToData:    make(map[string]*orderData),
-		mu:               sync.RWMutex{},
+		mu:               &sync.Mutex{},
 	}
 }
 
 func (sm *stateManager) mapItemCodesToCubby(items []*gen.Item, cubby *gen.Cubby) {
 	for _, item := range items {
-		sm.ItemCodeToCubby[item.Code] = append(sm.ItemCodeToCubby[item.Code], cubby)
+		sm.itemCodeToCubby[item.Code] = cubby
 	}
 }
 
@@ -50,7 +50,7 @@ func (sm *stateManager) getCubbyIdByOrderId(orderId string, times int) string {
 	cubbyId := ordertocubby.Map(orderId, uint32(times), 10)
 	attemptsToAvoidCollision := 1
 	for true {
-		if _, ok := sm.CubbyIdToOrderId[cubbyId]; !ok {
+		if _, ok := sm.cubbyIdToOrderId[cubbyId]; !ok {
 			break
 		}
 
@@ -65,7 +65,7 @@ func (sm *stateManager) GetPreparedOrders(orders []*gen.Order) []*gen.PreparedOr
 
 	for i, order := range orders {
 		cubbyId := sm.getCubbyIdByOrderId(order.Id, i)
-		sm.CubbyIdToOrderId[cubbyId] = order.Id
+		sm.cubbyIdToOrderId[cubbyId] = order.Id
 
 		cubby := &gen.Cubby{Id: cubbyId}
 		sm.OrderIdToData[order.Id] = &orderData{id: order.Id, cubby: cubby, items: order.Items}
@@ -74,24 +74,27 @@ func (sm *stateManager) GetPreparedOrders(orders []*gen.Order) []*gen.PreparedOr
 		preparedOrders = append(preparedOrders, preparedOrder)
 
 		sm.mapItemCodesToCubby(order.Items, cubby)
+		fmt.Println(sm.itemCodeToCubby)
 	}
 
 	return preparedOrders
 }
 
 func (sm *stateManager) GetCubbyByItemCode(itemCode string) (*gen.Cubby, error) {
-	if len(sm.ItemCodeToCubby[itemCode]) == 0 {
-		return nil, fmt.Errorf("This item was distributed to all necessary cubbies")
+	if sm.itemCodeToCubby[itemCode] == nil {
+		return nil, fmt.Errorf("Item: " + itemCode + " was distributed to all necessary cubbies")
 	}
 
-	cubby := sm.ItemCodeToCubby[itemCode][0]
-	sm.ItemCodeToCubby[itemCode] = sm.ItemCodeToCubby[itemCode][1:]
+	//cubby := sm.ItemCodeToCubby[itemCode][0]
+	//sm.ItemCodeToCubby[itemCode] = sm.ItemCodeToCubby[itemCode][1:]
+	cubby := sm.itemCodeToCubby[itemCode]
+	sm.itemCodeToCubby[itemCode] = nil
 	return cubby, nil
 }
 
 func (sm *stateManager) Clear() {
-	sm.ItemCodeToCubby = map[string][]*gen.Cubby{}
-	sm.CubbyIdToOrderId = map[string]string{}
+	sm.itemCodeToCubby = map[string]*gen.Cubby{}
+	sm.cubbyIdToOrderId = map[string]string{}
 	sm.OrderIdToData = map[string]*orderData{}
 }
 

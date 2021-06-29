@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 
+	"github.com/Emoto13/sort-system/fulfillment-service/service"
 	"github.com/Emoto13/sort-system/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -31,8 +33,8 @@ func newFulfillmentServer(sortingRobot gen.SortingRobotClient) (*grpc.Server, ne
 
 	grpcServer := grpc.NewServer()
 
-	service := newFulfillmentService(sortingRobot)
-	go service.ProcessOrders(nil, &gen.Empty{})
+	service := service.NewFulfillmentService(sortingRobot)
+	go service.ProcessOrders(context.Background(), &gen.Empty{})
 
 	gen.RegisterFulfillmentServer(grpcServer, service)
 	reflection.Register(grpcServer)
