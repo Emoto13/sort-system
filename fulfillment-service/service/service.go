@@ -18,11 +18,11 @@ type fulfillmentService struct {
 	mu               sync.Mutex
 }
 
-func New(sortingRobot gen.SortingRobotClient) gen.FulfillmentServer {
+func New(params FulfillmentServiceParameters) gen.FulfillmentServer {
 	return &fulfillmentService{
-		sortingRobot:     sortingRobot,
-		state:            state.New(),
-		orders:           make(chan []*gen.Order),
+		sortingRobot:     params.SortingRobot,
+		state:            params.State,
+		orders:           params.Orders,
 		processingOrders: false,
 		mu:               sync.Mutex{},
 	}
