@@ -11,36 +11,34 @@ import (
 type State interface {
 	AddOrders(orders []*gen.Order)
 
-	GetCubbyByItemCode(itemCode string) (*gen.Cubby, error)
-	GetOrderCubby(orderId string) (*gen.Cubby, error)
-	GetOrderItems(orderId string) ([]*gen.Item, error)
-	GetOrderStatus(orderId string) (gen.OrderStatus, error)
+	GetOrderCubbyByItemCode(itemCode string) (*OrderCubby, error)
+	GetOrderDataById(orderId string) (OrderData, error)
+	GetAllOrdersData() ([]OrderData, error)
+
+	AddItemStatusForOrder(orderId string, itemStatus ItemStatus) error
 	SetOrderStatus(orderId string, status gen.OrderStatus) error
-
-	GetFulfillmentStatusOfAllOrders() ([]*gen.FulfillmentStatus, error)
-
 	Clear()
 }
 
 type state struct {
-	itemCodeToCubby  map[string][]*gen.Cubby
-	cubbyIdToOrderId map[string]string
-	orderIdToData    map[string]*orderData
-	mu               *sync.RWMutex
+	itemCodeToOrderCubby map[string][]*OrderCubby
+	cubbyIdToOrderId     map[string]string
+	orderIdToData        map[string]*OrderData
+	mu                   *sync.RWMutex
 }
 
 func New() State {
 	return &state{
-		itemCodeToCubby:  make(map[string][]*gen.Cubby),
-		cubbyIdToOrderId: make(map[string]string),
-		orderIdToData:    make(map[string]*orderData),
-		mu:               &sync.RWMutex{},
+		itemCodeToOrderCubby: make(map[string][]*OrderCubby),
+		cubbyIdToOrderId:     make(map[string]string),
+		orderIdToData:        make(map[string]*OrderData),
+		mu:                   &sync.RWMutex{},
 	}
 }
 
-func (sm *state) mapItemCodesToCubby(items []*gen.Item, cubby *gen.Cubby) {
+func (sm *state) mapItemCodesToOrderCubby(items []*gen.Item, order *gen.Order, cubby *gen.Cubby) {
 	for _, item := range items {
-		sm.itemCodeToCubby[item.Code] = append(sm.itemCodeToCubby[item.Code], cubby)
+		sm.itemCodeToOrderCubby[item.Code] = append(sm.itemCodeToOrderCubby[item.Code], &OrderCubby{Order: order, Cubby: cubby})
 	}
 }
 
@@ -63,6 +61,27 @@ func (sm *state) getCubbyIdByOrderId(orderId string, times int) string {
 	return cubbyId
 }
 
+func (sm *state) getOrderStatus(orderId string) (gen.OrderStatus, error) {
+	if !sm.doesOrderWithIdExist(orderId) {
+		return gen.OrderStatus_FAILED, fmt.Errorf("No order with such id: " + orderId)
+	}
+
+	data := sm.orderIdToData[orderId]
+	if len(data.itemsFulfillmentStatus) == 0 {
+		return gen.OrderStatus_PENDING, nil
+	}
+
+	for _, itemStatus := range data.itemsFulfillmentStatus {
+		if itemStatus == Failed {
+			return gen.OrderStatus_FAILED, nil
+		} else if itemStatus == Pending {
+			return gen.OrderStatus_PENDING, nil
+		}
+	}
+
+	return gen.OrderStatus_READY, nil
+}
+
 func (sm *state) AddOrders(orders []*gen.Order) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -72,70 +91,66 @@ func (sm *state) AddOrders(orders []*gen.Order) {
 		sm.cubbyIdToOrderId[cubbyId] = order.Id
 
 		cubby := &gen.Cubby{Id: cubbyId}
-		sm.orderIdToData[order.Id] = &orderData{id: order.Id, items: order.Items, cubby: cubby, status: gen.OrderStatus_PENDING}
-		sm.mapItemCodesToCubby(order.Items, cubby)
+		sm.orderIdToData[order.Id] = &OrderData{Id: order.Id, Items: order.Items, Cubby: cubby, Status: gen.OrderStatus_PENDING}
+		sm.mapItemCodesToOrderCubby(order.Items, order, cubby)
 	}
-	fmt.Println(sm.orderIdToData)
 }
 
-func (sm *state) GetCubbyByItemCode(itemCode string) (*gen.Cubby, error) {
+func (sm *state) GetOrderCubbyByItemCode(itemCode string) (*OrderCubby, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
-	if len(sm.itemCodeToCubby[itemCode]) == 0 {
+	if len(sm.itemCodeToOrderCubby[itemCode]) == 0 {
 		return nil, fmt.Errorf("Item: " + itemCode + " was distributed to all necessary cubbies")
 	}
 
-	cubby := sm.itemCodeToCubby[itemCode][0]
-	sm.itemCodeToCubby[itemCode] = sm.itemCodeToCubby[itemCode][1:]
-	return cubby, nil
+	orderCubby := sm.itemCodeToOrderCubby[itemCode][0]
+	sm.itemCodeToOrderCubby[itemCode] = sm.itemCodeToOrderCubby[itemCode][1:]
+	return orderCubby, nil
 }
 
-func (sm *state) GetOrderCubby(orderId string) (*gen.Cubby, error) {
+func (sm *state) GetOrderDataById(orderId string) (OrderData, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		fmt.Println("Cubby", orderId)
-
-		return nil, fmt.Errorf("No order with such ID" + "Cubby " + orderId)
-
+		return OrderData{}, fmt.Errorf("No order with such id: " + orderId)
 	}
-	data := sm.orderIdToData[orderId]
-	return data.cubby, nil
 
+	status, err := sm.getOrderStatus(orderId)
+	if err != nil {
+		return OrderData{}, err
+	}
+
+	data := sm.orderIdToData[orderId]
+	data.Status = status
+	return *data, nil
 }
 
-func (sm *state) GetOrderItems(orderId string) ([]*gen.Item, error) {
+func (sm *state) GetAllOrdersData() ([]OrderData, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
-	if !sm.doesOrderWithIdExist(orderId) {
-		return nil, fmt.Errorf("No order with such ID")
+	orderDataSlice := []OrderData{}
+	for _, orderData := range sm.orderIdToData {
+		data, err := sm.GetOrderDataById(orderData.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		orderDataSlice = append(orderDataSlice, data)
 	}
 
-	data := sm.orderIdToData[orderId]
-	return data.items, nil
-}
-
-func (sm *state) GetOrderStatus(orderId string) (gen.OrderStatus, error) {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
-	if !sm.doesOrderWithIdExist(orderId) {
-		return gen.OrderStatus_FAILED, fmt.Errorf("No order with such ID")
-	}
-	data := sm.orderIdToData[orderId]
-	return data.status, nil
+	return orderDataSlice, nil
 }
 
 func (sm *state) Clear() {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	sm.itemCodeToCubby = map[string][]*gen.Cubby{}
+	sm.itemCodeToOrderCubby = map[string][]*OrderCubby{}
 	sm.cubbyIdToOrderId = map[string]string{}
-	sm.orderIdToData = map[string]*orderData{}
+	sm.orderIdToData = map[string]*OrderData{}
 }
 
 func (sm *state) SetOrderStatus(orderId string, status gen.OrderStatus) error {
@@ -147,48 +162,19 @@ func (sm *state) SetOrderStatus(orderId string, status gen.OrderStatus) error {
 	}
 
 	data := sm.orderIdToData[orderId]
-	data.status = status
+	data.Status = status
 	return nil
 }
 
-func (sm *state) GetFulfillmentStatusByOrderId(orderId string) ([]*gen.FulfillmentStatus, error) {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
+func (sm *state) AddItemStatusForOrder(orderId string, itemStatus ItemStatus) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return nil, fmt.Errorf("No order with such ID")
+		return fmt.Errorf("No order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]
-	order := &gen.Order{Id: orderId, Items: data.items}
-	fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: data.cubby, Status: data.status}
-	return []*gen.FulfillmentStatus{fulfillmentStatus}, nil
-}
-
-func (sm *state) GetFulfillmentStatusOfAllOrders() ([]*gen.FulfillmentStatus, error) {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
-	fulfillmentStatusSlice := []*gen.FulfillmentStatus{}
-	for _, orderData := range sm.orderIdToData {
-		items, err := sm.GetOrderItems(orderData.id)
-		if err != nil {
-			return nil, err
-		}
-
-		cubby, err := sm.GetOrderCubby(orderData.id)
-		if err != nil {
-			return nil, err
-		}
-
-		orderStatus, err := sm.GetOrderStatus(orderData.id)
-		if err != nil {
-			return nil, err
-		}
-
-		order := &gen.Order{Id: orderData.id, Items: items}
-		fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: cubby, Status: orderStatus}
-		fulfillmentStatusSlice = append(fulfillmentStatusSlice, fulfillmentStatus)
-	}
-	return fulfillmentStatusSlice, nil
+	data.itemsFulfillmentStatus = append(data.itemsFulfillmentStatus, itemStatus)
+	return nil
 }
