@@ -39,7 +39,10 @@ func (fs *fulfillmentService) setAreOrdersBeingProcessed(value bool) {
 }
 
 func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrdersRequest) (*gen.CompleteResponse, error) {
-	fs.orders <- in.Orders
+	go func() {
+		fs.orders <- in.Orders
+	}()
+
 	if fs.areOrdersBeingProcessed() {
 		return &gen.CompleteResponse{Status: "Will start to process the request shortly", Orders: []*gen.PreparedOrder{}}, nil
 	}
@@ -50,43 +53,46 @@ func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrders
 func (fs *fulfillmentService) ProcessOrders(ctx context.Context, in *gen.Empty) (*gen.Empty, error) {
 	for {
 		orders := <-fs.orders
-
-		if !fs.areOrdersBeingProcessed() {
-			fs.setAreOrdersBeingProcessed(true)
-			fs.StartProcessingOrder(ctx, orders)
+		err := fs.processOrders(ctx, orders)
+		if err != nil {
+			return nil, err
 		}
-
-		fs.setAreOrdersBeingProcessed(false)
 	}
 	return &gen.Empty{}, nil
 }
 
-func (fs *fulfillmentService) StartProcessingOrder(ctx context.Context, orders []*gen.Order) ([]*gen.PreparedOrder, error) {
+func (fs *fulfillmentService) processOrders(ctx context.Context, orders []*gen.Order) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	err := fs.StartProcessingOrder(ctx, orders)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *fulfillmentService) StartProcessingOrder(ctx context.Context, orders []*gen.Order) error {
 	fmt.Println("Start Processing Order")
-	fs.state.Clear()
 	fs.state.AddOrders(orders)
 
-	preparedOrders, err := fs.GetPreparedOrders(orders)
+	err := fs.fulfillOrders(ctx, orders)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = fs.fulfillOrders(ctx, orders)
-	if err != nil {
-		return nil, err
-	}
-
-	return preparedOrders, nil
+	return nil
 }
 
 func (fs *fulfillmentService) GetPreparedOrders(orders []*gen.Order) ([]*gen.PreparedOrder, error) {
 	preparedOrders := []*gen.PreparedOrder{}
 	for _, order := range orders {
-		cubby, err := fs.state.GetOrderCubby(order.Id)
+		orderData, err := fs.state.GetOrderDataById(order.Id)
 		if err != nil {
 			return nil, err
 		}
-
+		cubby := orderData.Cubby
 		preparedOrder := &gen.PreparedOrder{Order: order, Cubby: cubby}
 		preparedOrders = append(preparedOrders, preparedOrder)
 	}
@@ -102,53 +108,54 @@ func (fs *fulfillmentService) fulfillOrders(ctx context.Context, orders []*gen.O
 				return err
 			}
 
-			cubby, err := fs.state.GetCubbyByItemCode(resp.Item.Code)
+			orderCubby, err := fs.state.GetOrderCubbyByItemCode(resp.Item.Code)
 			if err != nil {
 				log.Println(err)
+				fs.state.AddItemStatusForOrder(order.Id, state.Failed)
 				continue
 			}
 
-			_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: cubby})
+			_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: orderCubby.Cubby})
 			if err != nil {
+				fs.state.AddItemStatusForOrder(order.Id, state.Failed)
+
 				return err
 			}
-
-			fmt.Println("Item with code ", resp.Item.Code, " is moved to: ", cubby.Id)
+			fs.state.AddItemStatusForOrder(order.Id, state.Ready)
+			fmt.Println("Item with code ", resp.Item.Code, " is moved to: ", orderCubby.Cubby.Id)
 		}
-		fs.state.SetOrderStatus(order.Id, gen.OrderStatus_READY)
 	}
-
+	fmt.Println(fs.state.GetAllOrdersData())
 	return nil
 }
 
 func (fs *fulfillmentService) GetOrderFulfillmentStatusById(ctx context.Context, in *gen.OrderIdRequest) (*gen.OrdersStatusResponse, error) {
-	items, err := fs.state.GetOrderItems(in.OrderId)
+	fmt.Println("GetOrderFulfillmentStatusById")
+	orderData, err := fs.state.GetOrderDataById(in.OrderId)
 	if err != nil {
 		return nil, err
 	}
 
-	cubby, err := fs.state.GetOrderCubby(in.OrderId)
-	if err != nil {
-		return nil, err
-	}
-
-	orderStatus, err := fs.state.GetOrderStatus(in.OrderId)
-	if err != nil {
-		return nil, err
-	}
-
-	order := &gen.Order{Id: in.OrderId, Items: items}
-	fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: cubby, Status: orderStatus}
+	order := &gen.Order{Id: in.OrderId, Items: orderData.Items}
+	fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: orderData.Cubby, Status: orderData.Status}
 	return &gen.OrdersStatusResponse{FulfillmentStatus: []*gen.FulfillmentStatus{fulfillmentStatus}}, nil
 }
 
 func (fs *fulfillmentService) GetAllOrdersFulfillmentStatus(ctx context.Context, in *gen.Empty) (*gen.OrdersStatusResponse, error) {
-	allOrdersFulfillmentStatus, err := fs.state.GetFulfillmentStatusOfAllOrders()
+	fmt.Println("GetAllOrdersFulfillmentStatus")
+	orderDataSlice, err := fs.state.GetAllOrdersData()
 	if err != nil {
 		return nil, err
 	}
 
-	return &gen.OrdersStatusResponse{FulfillmentStatus: allOrdersFulfillmentStatus}, nil
+	fulfillmentStatusSlice := []*gen.FulfillmentStatus{}
+	for _, orderData := range orderDataSlice {
+		order := &gen.Order{Id: orderData.Id, Items: orderData.Items}
+		fulfillmentStatus := &gen.FulfillmentStatus{Order: order, Cubby: orderData.Cubby, Status: orderData.Status}
+		fulfillmentStatusSlice = append(fulfillmentStatusSlice, fulfillmentStatus)
+	}
+
+	return &gen.OrdersStatusResponse{FulfillmentStatus: fulfillmentStatusSlice}, nil
 }
 
 func (fs *fulfillmentService) MarkFulfilled(ctx context.Context, in *gen.OrderIdRequest) (*gen.Empty, error) {
