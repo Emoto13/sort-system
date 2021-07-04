@@ -38,11 +38,11 @@ func (s *sortingService) SelectItem(ctx context.Context, in *gen.Empty) (*gen.Se
 	log.Println("SelectedItem:", s.SelectedItem)
 
 	if s.SelectedItem != nil {
-		return nil, fmt.Errorf("Item has already been selected")
+		return nil, fmt.Errorf("item has already been selected")
 	}
 
 	if s.Items == nil || len(s.Items) == 0 {
-		return nil, fmt.Errorf("No items in the cargo")
+		return nil, fmt.Errorf("no items in the cargo")
 	}
 
 	randomIndex := rand.Intn(len(s.Items))
@@ -55,7 +55,7 @@ func (s *sortingService) SelectItem(ctx context.Context, in *gen.Empty) (*gen.Se
 
 func (s *sortingService) MoveItem(ctx context.Context, in *gen.MoveItemRequest) (*gen.Empty, error) {
 	if s.SelectedItem == nil {
-		return nil, fmt.Errorf("Item is not selected")
+		return nil, fmt.Errorf("item is not selected")
 	}
 
 	s.SelectedItem = nil
@@ -64,5 +64,5 @@ func (s *sortingService) MoveItem(ctx context.Context, in *gen.MoveItemRequest) 
 }
 
 func (s *sortingService) AuditState(ctx context.Context, in *gen.Empty) (*gen.AuditStateResponse, error) {
-	return nil, fmt.Errorf("Not implemented")
+	return nil, fmt.Errorf("not implemented")
 }
