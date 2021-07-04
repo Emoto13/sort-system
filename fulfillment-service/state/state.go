@@ -24,7 +24,7 @@ type state struct {
 	itemCodeToOrderCubby map[string][]*OrderCubby
 	cubbyIdToOrderId     map[string]string
 	orderIdToData        map[string]*OrderData
-	mu                   *sync.RWMutex
+	mu                   sync.RWMutex
 }
 
 func New() State {
@@ -32,7 +32,7 @@ func New() State {
 		itemCodeToOrderCubby: make(map[string][]*OrderCubby),
 		cubbyIdToOrderId:     make(map[string]string),
 		orderIdToData:        make(map[string]*OrderData),
-		mu:                   &sync.RWMutex{},
+		mu:                   sync.RWMutex{},
 	}
 }
 
@@ -79,6 +79,11 @@ func (sm *state) getOrderStatus(orderId string) (gen.OrderStatus, error) {
 		}
 	}
 
+	for _, itemStatus := range data.itemsFulfillmentStatus {
+		if itemStatus == Pending {
+			return gen.OrderStatus_PENDING, nil
+		}
+	}
 	return gen.OrderStatus_READY, nil
 }
 
@@ -101,7 +106,7 @@ func (sm *state) GetOrderCubbyByItemCode(itemCode string) (*OrderCubby, error) {
 	defer sm.mu.RUnlock()
 
 	if len(sm.itemCodeToOrderCubby[itemCode]) == 0 {
-		return nil, fmt.Errorf("Item: " + itemCode + " was distributed to all necessary cubbies")
+		return nil, fmt.Errorf("item: " + itemCode + " was distributed to all necessary cubbies")
 	}
 
 	orderCubby := sm.itemCodeToOrderCubby[itemCode][0]
@@ -114,7 +119,7 @@ func (sm *state) GetOrderDataById(orderId string) (OrderData, error) {
 	defer sm.mu.RUnlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return OrderData{}, fmt.Errorf("No order with such id: " + orderId)
+		return OrderData{}, fmt.Errorf("no order with such id: " + orderId)
 	}
 
 	status, err := sm.getOrderStatus(orderId)
@@ -158,7 +163,7 @@ func (sm *state) SetOrderStatus(orderId string, status gen.OrderStatus) error {
 	defer sm.mu.Unlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return fmt.Errorf("No order with such ID")
+		return fmt.Errorf("no order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]
@@ -171,7 +176,7 @@ func (sm *state) AddItemStatusForOrder(orderId string, itemStatus ItemStatus) er
 	defer sm.mu.Unlock()
 
 	if !sm.doesOrderWithIdExist(orderId) {
-		return fmt.Errorf("No order with such ID")
+		return fmt.Errorf("no order with such ID")
 	}
 
 	data := sm.orderIdToData[orderId]

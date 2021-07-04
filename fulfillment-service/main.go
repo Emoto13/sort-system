@@ -14,8 +14,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-const sortingRobotAddress = "localhost:10000"
-const serverPort = "localhost:10001"
+const (
+	sortingRobotAddress = "localhost:10000"
+	serverPort          = "localhost:10001"
+)
 
 func main() {
 	sortingRobot, conn := newSortingRobotClient()
@@ -34,9 +36,9 @@ func newFulfillmentServer(sortingRobot gen.SortingRobotClient) (*grpc.Server, ne
 	}
 
 	grpcServer := grpc.NewServer()
-	fulfillmentParameters := service.FulfillmentServiceParameters{SortingRobot: sortingRobot, State: state.New(), Orders: make(chan []*gen.Order)}
+	fulfillmentParameters := &service.FulfillmentServiceParameters{SortingRobot: sortingRobot, State: state.New(), Orders: make(chan []*gen.Order)}
 	service := service.New(fulfillmentParameters)
-	go service.ProcessOrders(context.Background(), &gen.Empty{})
+	go service.ProcessOrders(context.Background())
 
 	gen.RegisterFulfillmentServer(grpcServer, service)
 	reflection.Register(grpcServer)

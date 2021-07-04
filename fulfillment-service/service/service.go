@@ -10,6 +10,11 @@ import (
 	"github.com/Emoto13/sort-system/gen"
 )
 
+type FulfillmentService interface {
+	gen.FulfillmentServer
+	ProcessOrders(ctx context.Context) error
+}
+
 type fulfillmentService struct {
 	sortingRobot     gen.SortingRobotClient
 	state            state.State
@@ -18,7 +23,7 @@ type fulfillmentService struct {
 	mu               sync.Mutex
 }
 
-func New(params FulfillmentServiceParameters) gen.FulfillmentServer {
+func New(params *FulfillmentServiceParameters) FulfillmentService {
 	return &fulfillmentService{
 		sortingRobot:     params.SortingRobot,
 		state:            params.State,
@@ -33,8 +38,6 @@ func (fs *fulfillmentService) areOrdersBeingProcessed() bool {
 }
 
 func (fs *fulfillmentService) setAreOrdersBeingProcessed(value bool) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
 	fs.processingOrders = value
 }
 
@@ -50,21 +53,25 @@ func (fs *fulfillmentService) LoadOrders(ctx context.Context, in *gen.LoadOrders
 	return &gen.CompleteResponse{Status: "The request will be handled immediately", Orders: []*gen.PreparedOrder{}}, nil
 }
 
-func (fs *fulfillmentService) ProcessOrders(ctx context.Context, in *gen.Empty) (*gen.Empty, error) {
+func (fs *fulfillmentService) ProcessOrders(ctx context.Context) error {
 	for {
 		orders := <-fs.orders
+
+		fs.mu.Lock()
+		fs.setAreOrdersBeingProcessed(true)
+
 		err := fs.processOrders(ctx, orders)
 		if err != nil {
-			return nil, err
+			return err
 		}
+
+		fs.setAreOrdersBeingProcessed(false)
+		fs.mu.Unlock()
 	}
-	return &gen.Empty{}, nil
+	return nil
 }
 
 func (fs *fulfillmentService) processOrders(ctx context.Context, orders []*gen.Order) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
 	err := fs.StartProcessingOrder(ctx, orders)
 	if err != nil {
 		return err
@@ -74,7 +81,12 @@ func (fs *fulfillmentService) processOrders(ctx context.Context, orders []*gen.O
 }
 
 func (fs *fulfillmentService) StartProcessingOrder(ctx context.Context, orders []*gen.Order) error {
-	fmt.Println("Start Processing Order")
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in StartProcessingOrder", r)
+		}
+	}()
+
 	fs.state.AddOrders(orders)
 
 	err := fs.fulfillOrders(ctx, orders)
@@ -92,6 +104,7 @@ func (fs *fulfillmentService) GetPreparedOrders(orders []*gen.Order) ([]*gen.Pre
 		if err != nil {
 			return nil, err
 		}
+
 		cubby := orderData.Cubby
 		preparedOrder := &gen.PreparedOrder{Order: order, Cubby: cubby}
 		preparedOrders = append(preparedOrders, preparedOrder)
@@ -118,19 +131,20 @@ func (fs *fulfillmentService) fulfillOrders(ctx context.Context, orders []*gen.O
 			_, err = fs.sortingRobot.MoveItem(ctx, &gen.MoveItemRequest{Cubby: orderCubby.Cubby})
 			if err != nil {
 				fs.state.AddItemStatusForOrder(order.Id, state.Failed)
-
 				return err
 			}
+
 			fs.state.AddItemStatusForOrder(order.Id, state.Ready)
 			fmt.Println("Item with code ", resp.Item.Code, " is moved to: ", orderCubby.Cubby.Id)
 		}
+		fmt.Println(fs.state.GetAllOrdersData())
 	}
-	fmt.Println(fs.state.GetAllOrdersData())
+	fs.state.Clear()
+
 	return nil
 }
 
 func (fs *fulfillmentService) GetOrderFulfillmentStatusById(ctx context.Context, in *gen.OrderIdRequest) (*gen.OrdersStatusResponse, error) {
-	fmt.Println("GetOrderFulfillmentStatusById")
 	orderData, err := fs.state.GetOrderDataById(in.OrderId)
 	if err != nil {
 		return nil, err
@@ -142,7 +156,6 @@ func (fs *fulfillmentService) GetOrderFulfillmentStatusById(ctx context.Context,
 }
 
 func (fs *fulfillmentService) GetAllOrdersFulfillmentStatus(ctx context.Context, in *gen.Empty) (*gen.OrdersStatusResponse, error) {
-	fmt.Println("GetAllOrdersFulfillmentStatus")
 	orderDataSlice, err := fs.state.GetAllOrdersData()
 	if err != nil {
 		return nil, err
