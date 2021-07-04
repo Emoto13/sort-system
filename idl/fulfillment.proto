@@ -11,7 +11,7 @@ service Fulfillment {
     rpc GetOrderFulfillmentStatusById(OrderIdRequest) returns (OrdersStatusResponse);
     rpc GetAllOrdersFulfillmentStatus(types.Empty) returns (OrdersStatusResponse);
     rpc MarkFulfilled(OrderIdRequest) returns (types.Empty);
-    rpc ProcessOrders(types.Empty) returns (types.Empty);
+    //rpc ProcessOrders(types.Empty) returns (types.Empty);
 
 }
 

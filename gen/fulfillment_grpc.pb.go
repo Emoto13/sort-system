@@ -23,7 +23,6 @@ type FulfillmentClient interface {
 	GetOrderFulfillmentStatusById(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
 	GetAllOrdersFulfillmentStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*OrdersStatusResponse, error)
 	MarkFulfilled(ctx context.Context, in *OrderIdRequest, opts ...grpc.CallOption) (*Empty, error)
-	ProcessOrders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type fulfillmentClient struct {
@@ -70,15 +69,6 @@ func (c *fulfillmentClient) MarkFulfilled(ctx context.Context, in *OrderIdReques
 	return out, nil
 }
 
-func (c *fulfillmentClient) ProcessOrders(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/fulfillment.Fulfillment/ProcessOrders", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // FulfillmentServer is the server API for Fulfillment service.
 // All implementations should embed UnimplementedFulfillmentServer
 // for forward compatibility
@@ -88,7 +78,6 @@ type FulfillmentServer interface {
 	GetOrderFulfillmentStatusById(context.Context, *OrderIdRequest) (*OrdersStatusResponse, error)
 	GetAllOrdersFulfillmentStatus(context.Context, *Empty) (*OrdersStatusResponse, error)
 	MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error)
-	ProcessOrders(context.Context, *Empty) (*Empty, error)
 }
 
 // UnimplementedFulfillmentServer should be embedded to have forward compatible implementations.
@@ -106,9 +95,6 @@ func (UnimplementedFulfillmentServer) GetAllOrdersFulfillmentStatus(context.Cont
 }
 func (UnimplementedFulfillmentServer) MarkFulfilled(context.Context, *OrderIdRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MarkFulfilled not implemented")
-}
-func (UnimplementedFulfillmentServer) ProcessOrders(context.Context, *Empty) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ProcessOrders not implemented")
 }
 
 // UnsafeFulfillmentServer may be embedded to opt out of forward compatibility for this service.
@@ -194,24 +180,6 @@ func _Fulfillment_MarkFulfilled_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Fulfillment_ProcessOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FulfillmentServer).ProcessOrders(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/fulfillment.Fulfillment/ProcessOrders",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FulfillmentServer).ProcessOrders(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Fulfillment_ServiceDesc is the grpc.ServiceDesc for Fulfillment service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -234,10 +202,6 @@ var Fulfillment_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MarkFulfilled",
 			Handler:    _Fulfillment_MarkFulfilled_Handler,
-		},
-		{
-			MethodName: "ProcessOrders",
-			Handler:    _Fulfillment_ProcessOrders_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
